@@ -52,14 +52,58 @@ app.innerHTML = `
             <span>Import</span>
             <input id="topbarImportInput" type="file" accept=".json,application/json" style="display: none;" />
           </label>
-          <button id="quickCopySvg" class="btn btn-secondary btn-sm" title="Copy SVG code to clipboard">
-            ${UI_ICONS.copy}
-            <span>Copy SVG</span>
-          </button>
-          <button id="topExportBtn" class="btn btn-primary btn-sm">
-            ${UI_ICONS.download}
-            <span>Export</span>
-          </button>
+
+          <div class="export-menu-wrap">
+            <button id="exportMenuToggle" class="btn btn-primary btn-sm" aria-expanded="false" title="Export Vector Asset">
+              ${UI_ICONS.download}
+              <span>Export</span>
+              ${UI_ICONS.chevronDown}
+            </button>
+            <div id="exportPopover" class="export-popover">
+              <!-- SVG -->
+              <div class="export-menu-item">
+                <div class="export-menu-header">
+                  <span class="export-menu-title">SVG Vector</span>
+                  <span class="export-menu-badge">Stock Safe</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button id="exportSvg" class="btn btn-primary btn-sm" style="flex: 1;">
+                    ${UI_ICONS.download} Download
+                  </button>
+                  <button id="quickCopySvg" class="btn btn-secondary btn-sm" style="flex: 1;">
+                    ${UI_ICONS.copy} Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <!-- EPS -->
+              <div class="export-menu-item">
+                <div class="export-menu-header">
+                  <span class="export-menu-title">Adobe PostScript (EPS)</span>
+                  <span class="export-menu-badge">Illustrator</span>
+                </div>
+                <button id="exportEps" class="btn btn-secondary btn-sm" style="width: 100%;">
+                  ${UI_ICONS.download} Download .EPS
+                </button>
+              </div>
+
+              <!-- PNG -->
+              <div class="export-menu-item">
+                <div class="export-menu-header">
+                  <span class="export-menu-title">Rasterized PNG</span>
+                  <span class="export-menu-badge">High-DPI</span>
+                </div>
+                <div class="png-scale-picker">
+                  <button type="button" class="png-scale-btn" data-scale="1">1x</button>
+                  <button type="button" class="png-scale-btn active" data-scale="2">2x</button>
+                  <button type="button" class="png-scale-btn" data-scale="4">4x</button>
+                </div>
+                <button id="exportPng" class="btn btn-secondary btn-sm" style="width: 100%; margin-top: 4px;">
+                  ${UI_ICONS.download} Download .PNG
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -142,10 +186,6 @@ app.innerHTML = `
         <button class="inspector-tab" data-tab="recipe" role="tab">
           ${UI_ICONS.tabCode}
           <span>Recipe</span>
-        </button>
-        <button class="inspector-tab" data-tab="export" role="tab">
-          ${UI_ICONS.tabExport}
-          <span>Export</span>
         </button>
       </nav>
 
@@ -446,83 +486,6 @@ app.innerHTML = `
             </div>
             <div id="recipeError" class="error-banner"></div>
             <button id="applyRecipe" class="btn btn-primary" style="width: 100%;">Apply Recipe Changes</button>
-          </div>
-        </div>
-
-        <!-- Panel 6: Export Studio -->
-        <div id="panel-export" class="inspector-panel">
-          <div class="panel-section">
-            <div class="panel-header">
-              <h3>Export & Import</h3>
-              <span class="header-badge">Production Ready</span>
-            </div>
-            <div class="export-cards-grid">
-              <!-- Import Recipe Card -->
-              <div class="export-card">
-                <div class="export-card-header">
-                  <div class="export-card-info">
-                    <h4>Import Recipe JSON</h4>
-                    <p>Load any saved 3D recipe file (.json) or drag & drop directly onto canvas.</p>
-                  </div>
-                </div>
-                <label class="btn btn-secondary" style="cursor: pointer; width: 100%;">
-                  ${UI_ICONS.upload} Choose JSON File
-                  <input id="exportPanelImportInput" type="file" accept=".json,application/json" style="display: none;" />
-                </label>
-              </div>
-
-              <!-- SVG Card -->
-              <div class="export-card">
-                <div class="export-card-header">
-                  <div class="export-card-info">
-                    <h4>Vector SVG</h4>
-                    <p>Clean vector, infinite scale, Adobe Stock & Freepik safe.</p>
-                  </div>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button id="exportSvg" class="btn btn-primary" style="flex: 1;">
-                    ${UI_ICONS.download} Download .SVG
-                  </button>
-                  <button id="exportCopySvgDirect" class="btn btn-secondary" style="flex: 1;">
-                    ${UI_ICONS.copy} Copy Code
-                  </button>
-                </div>
-              </div>
-
-              <!-- EPS Card -->
-              <div class="export-card">
-                <div class="export-card-header">
-                  <div class="export-card-info">
-                    <h4>Adobe PostScript (EPS)</h4>
-                    <p>Compatible with Illustrator, Affinity Designer & CorelDraw.</p>
-                  </div>
-                </div>
-                <button id="exportEps" class="btn btn-secondary" style="width: 100%;">
-                  ${UI_ICONS.download} Download .EPS
-                </button>
-              </div>
-
-              <!-- PNG Card -->
-              <div class="export-card">
-                <div class="export-card-header">
-                  <div class="export-card-info">
-                    <h4>Rasterized PNG</h4>
-                    <p>High-DPI transparent bitmap rendering.</p>
-                  </div>
-                </div>
-                <div class="control-group">
-                  <span class="control-caption" style="margin-bottom: 2px;">Resolution Scale</span>
-                  <div class="png-scale-picker">
-                    <button type="button" class="png-scale-btn" data-scale="1">1x (1000px)</button>
-                    <button type="button" class="png-scale-btn active" data-scale="2">2x (2000px)</button>
-                    <button type="button" class="png-scale-btn" data-scale="4">4x (4000px)</button>
-                  </div>
-                </div>
-                <button id="exportPng" class="btn btn-secondary" style="width: 100%; margin-top: 6px;">
-                  ${UI_ICONS.download} Download .PNG
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -901,13 +864,27 @@ tabs.forEach((tab) => {
   });
 });
 
-// Topbar Export Button: Navigate to Export Tab
-el<HTMLButtonElement>("topExportBtn").addEventListener("click", () => {
-  tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === "export"));
-  panels.forEach((p) => p.classList.toggle("active", p.id === "panel-export"));
-  // Scroll to inspector on mobile
-  if (window.innerWidth <= 860) {
-    document.querySelector(".inspector")?.scrollIntoView({ behavior: "smooth" });
+// Export Popover Toggle
+const exportMenuToggle = el<HTMLButtonElement>("exportMenuToggle");
+const exportPopover = el<HTMLDivElement>("exportPopover");
+
+exportMenuToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const isOpen = exportPopover.classList.toggle("open");
+  exportMenuToggle.setAttribute("aria-expanded", String(isOpen));
+});
+
+document.addEventListener("click", (e) => {
+  if (!exportPopover.contains(e.target as Node) && !exportMenuToggle.contains(e.target as Node)) {
+    exportPopover.classList.remove("open");
+    exportMenuToggle.setAttribute("aria-expanded", "false");
+  }
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    exportPopover.classList.remove("open");
+    exportMenuToggle.setAttribute("aria-expanded", "false");
   }
 });
 
@@ -986,7 +963,6 @@ async function copySvgToClipboard(): Promise<void> {
 }
 
 el<HTMLButtonElement>("quickCopySvg").addEventListener("click", copySvgToClipboard);
-el<HTMLButtonElement>("exportCopySvgDirect").addEventListener("click", copySvgToClipboard);
 
 // Export Actions
 el<HTMLButtonElement>("exportSvg").addEventListener("click", () => {
@@ -1155,7 +1131,6 @@ function bindFileInput(id: string): void {
 
 bindFileInput("topbarImportInput");
 bindFileInput("recipeImportInput");
-bindFileInput("exportPanelImportInput");
 
 // Drag & Drop JSON onto Window / Canvas
 window.addEventListener("dragover", (e) => {
