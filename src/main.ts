@@ -167,25 +167,20 @@ app.innerHTML = `
     <aside class="inspector">
       <!-- Tabs Header -->
       <nav class="inspector-tabs-bar" role="tablist">
-        <button class="inspector-tab active" data-tab="shape" role="tab">
+        <button class="inspector-tab active" data-tab="shape" role="tab" title="Shape Model" aria-label="Shape Model">
           ${UI_ICONS.tabShape}
-          <span>Shape</span>
         </button>
-        <button class="inspector-tab" data-tab="lighting" role="tab">
+        <button class="inspector-tab" data-tab="lighting" role="tab" title="3D & Lighting" aria-label="3D & Lighting">
           ${UI_ICONS.tab3D}
-          <span>3D & Light</span>
         </button>
-        <button class="inspector-tab" data-tab="material" role="tab">
+        <button class="inspector-tab" data-tab="material" role="tab" title="Material & Colors" aria-label="Material & Colors">
           ${UI_ICONS.tabColors}
-          <span>Colors</span>
         </button>
-        <button class="inspector-tab" data-tab="symbol" role="tab">
+        <button class="inspector-tab" data-tab="symbol" role="tab" title="Icon Emblem" aria-label="Icon Emblem">
           ${UI_ICONS.tabSymbol}
-          <span>Symbol</span>
         </button>
-        <button class="inspector-tab" data-tab="recipe" role="tab">
+        <button class="inspector-tab" data-tab="recipe" role="tab" title="Recipe JSON" aria-label="Recipe JSON">
           ${UI_ICONS.tabCode}
-          <span>Recipe</span>
         </button>
       </nav>
 
@@ -713,7 +708,7 @@ function render(updateEditor = true): void {
 
   const result = validateStockSafeSvg(svg);
   statusDot.className = `status-dot ${result.ok ? "" : "bad"}`;
-  validation.textContent = result.ok ? "Stock-Safe Vector" : result.messages[0];
+  validation.textContent = result.ok ? "" : result.messages[0];
 
   syncOutputs();
 
