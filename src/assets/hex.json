@@ -1,0 +1,26 @@
+{
+  "name": "Energy Token",
+  "canvas": { "width": 1000, "height": 1000, "transparent": true },
+  "shape": {
+    "type": "hex",
+    "center": [500, 465],
+    "width": 620,
+    "height": 560,
+    "rotation": -12,
+    "depth": 64,
+    "bevel": 25,
+    "cornerRadius": 60,
+    "faceColor": "#FFE085",
+    "sideColor": "#A76B16",
+    "lightAngle": 310,
+    "depthAngle": 104
+  },
+  "symbol": {
+    "icon": "bolt",
+    "color": "#FFFFFF",
+    "sideColor": "#D2CEC4",
+    "scale": 0.72,
+    "depth": 20,
+    "offset": [0, 18]
+  }
+}

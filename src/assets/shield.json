@@ -1,0 +1,26 @@
+{
+  "name": "Security Shield",
+  "canvas": { "width": 1000, "height": 1000, "transparent": true },
+  "shape": {
+    "type": "shield",
+    "center": [500, 465],
+    "width": 570,
+    "height": 610,
+    "rotation": -8,
+    "depth": 60,
+    "bevel": 24,
+    "cornerRadius": 50,
+    "faceColor": "#A2E8CC",
+    "sideColor": "#408F72",
+    "lightAngle": 315,
+    "depthAngle": 105
+  },
+  "symbol": {
+    "icon": "check",
+    "color": "#FFFFFF",
+    "sideColor": "#D3DED9",
+    "scale": 0.68,
+    "depth": 17,
+    "offset": [0, 28]
+  }
+}

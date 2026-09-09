@@ -1,0 +1,26 @@
+{
+  "name": "3D Action Button",
+  "canvas": { "width": 1000, "height": 1000, "transparent": true },
+  "shape": {
+    "type": "button",
+    "center": [500, 465],
+    "width": 610,
+    "height": 420,
+    "rotation": -10,
+    "depth": 72,
+    "bevel": 38,
+    "cornerRadius": 150,
+    "faceColor": "#F88CB2",
+    "sideColor": "#A84367",
+    "lightAngle": 300,
+    "depthAngle": 103
+  },
+  "symbol": {
+    "icon": "star",
+    "color": "#FFFFFF",
+    "sideColor": "#D8D3D5",
+    "scale": 0.64,
+    "depth": 18,
+    "offset": [0, 10]
+  }
+}
