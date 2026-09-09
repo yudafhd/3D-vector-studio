@@ -1,5 +1,58 @@
-export type ShapeType = "coin" | "card" | "button" | "shield" | "hex";
-export type IconType = "dollar" | "check" | "star" | "bolt" | "none";
+export type ShapeType = "coin" | "card" | "button" | "shield" | "hex" | "custom";
+export type IconType = "dollar" | "check" | "star" | "bolt" | "custom" | "none";
+
+export type MatrixTuple = [number, number, number, number, number, number];
+
+export interface VectorElementStyle {
+  fill?: Paint;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeLinecap?: "round" | "square" | "butt";
+  strokeLinejoin?: "round" | "bevel" | "miter";
+  strokeDasharray?: number[];
+  strokeDashoffset?: number;
+  fillRule?: "nonzero" | "evenodd";
+  opacity?: number;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+}
+
+interface VectorElementBase extends VectorElementStyle {
+  id?: string;
+  matrix?: MatrixTuple;
+}
+
+export interface VectorPathRecipe extends VectorElementBase {
+  kind: "path";
+  d: string;
+}
+
+export interface VectorRectRecipe extends VectorElementBase {
+  kind: "rect";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rx?: number;
+  ry?: number;
+}
+
+export interface VectorEllipseRecipe extends VectorElementBase {
+  kind: "ellipse";
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
+
+export type VectorElementRecipe = VectorPathRecipe | VectorRectRecipe | VectorEllipseRecipe;
+
+export interface VectorSourceRecipe {
+  viewBox: [number, number, number, number];
+  elements: VectorElementRecipe[];
+  preserveAspectRatio?: "meet" | "slice" | "none";
+  preserveColors?: boolean;
+}
 
 export interface CanvasRecipe {
   width: number;
@@ -20,6 +73,7 @@ export interface ShapeRecipe {
   sideColor: string;
   lightAngle: number;
   depthAngle: number;
+  source?: VectorSourceRecipe;
 }
 
 export interface SymbolRecipe {
@@ -29,6 +83,7 @@ export interface SymbolRecipe {
   scale: number;
   depth: number;
   offset: [number, number];
+  source?: VectorSourceRecipe;
 }
 
 export interface PartRecipe {
@@ -48,12 +103,32 @@ export interface AssetRecipe {
 export interface LinearGradient {
   kind: "linear";
   id: string;
-  angle: number;
-  stops: Array<{ offset: number; color: string }>;
+  angle?: number;
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  units?: "objectBoundingBox" | "userSpaceOnUse";
+  matrix?: MatrixTuple;
+  stops: Array<{ offset: number; color: string; opacity?: number }>;
   fallback: string;
 }
 
-export type Paint = string | LinearGradient;
+export interface RadialGradient {
+  kind: "radial";
+  id: string;
+  cx: number;
+  cy: number;
+  r: number;
+  fx?: number;
+  fy?: number;
+  units?: "objectBoundingBox" | "userSpaceOnUse";
+  matrix?: MatrixTuple;
+  stops: Array<{ offset: number; color: string; opacity?: number }>;
+  fallback: string;
+}
+
+export type Paint = string | LinearGradient | RadialGradient;
 
 export interface TransformSpec {
   translateX?: number;
@@ -63,6 +138,7 @@ export interface TransformSpec {
   originY?: number;
   scaleX?: number;
   scaleY?: number;
+  matrix?: MatrixTuple;
 }
 
 export interface EllipseNode {
@@ -74,7 +150,13 @@ export interface EllipseNode {
   fill: Paint;
   stroke?: string;
   strokeWidth?: number;
+  strokeLinecap?: "round" | "square" | "butt";
+  strokeLinejoin?: "round" | "bevel" | "miter";
   opacity?: number;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+  strokeDasharray?: number[];
+  strokeDashoffset?: number;
   transform?: TransformSpec;
   group?: string;
 }
@@ -90,7 +172,13 @@ export interface RectNode {
   fill: Paint;
   stroke?: string;
   strokeWidth?: number;
+  strokeLinecap?: "round" | "square" | "butt";
+  strokeLinejoin?: "round" | "bevel" | "miter";
   opacity?: number;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+  strokeDasharray?: number[];
+  strokeDashoffset?: number;
   transform?: TransformSpec;
   group?: string;
 }
@@ -105,6 +193,10 @@ export interface PathNode {
   strokeLinecap?: "round" | "square" | "butt";
   strokeLinejoin?: "round" | "bevel" | "miter";
   opacity?: number;
+  fillOpacity?: number;
+  strokeOpacity?: number;
+  strokeDasharray?: number[];
+  strokeDashoffset?: number;
   transform?: TransformSpec;
   group?: string;
 }

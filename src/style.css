@@ -654,7 +654,7 @@ button, input, select, textarea {
 /* Segmented Buttons for Shape and Symbol */
 .segmented-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   background: var(--bg-workspace);
   padding: 4px;
@@ -780,56 +780,6 @@ input[type="range"]::-webkit-slider-thumb:active {
 }
 
 /* Material & Color Section */
-.curated-palettes-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.palettes-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.palette-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: var(--bg-workspace);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.palette-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: var(--bg-panel-elevated);
-  transform: translateY(-1px);
-}
-
-.palette-dots {
-  display: flex;
-  height: 14px;
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.palette-dot {
-  flex: 1;
-}
-
-.palette-name {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* Custom Swatches Grid */
 .color-swatches-grid {
   display: grid;

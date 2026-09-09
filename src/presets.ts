@@ -1,4 +1,5 @@
 import type { AssetRecipe } from "./types";
+import { validateAssetRecipe } from "./core/recipe";
 
 type AssetModule = {
   default: AssetRecipe;
@@ -15,13 +16,13 @@ function assetKey(path: string): string {
 }
 
 export const presets: Record<string, AssetRecipe> = Object.fromEntries(
-  Object.entries(assetModules).map(([path, module]) => [assetKey(path), module.default])
+  Object.entries(assetModules).map(([path, module]) => [assetKey(path), validateAssetRecipe(module.default)])
 );
 
-if (!presets.coin) {
-  throw new Error("Missing required default asset: src/assets/coin.json");
+if (!presets.button) {
+  throw new Error("Missing required default asset: src/assets/button.json");
 }
 
 export function clonePreset(key: string): AssetRecipe {
-  return structuredClone(presets[key] ?? presets.coin);
+  return structuredClone(presets[key] ?? presets.button);
 }

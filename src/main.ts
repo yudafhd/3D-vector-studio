@@ -1,10 +1,11 @@
 import "./style.css";
 import { buildScene } from "./core/geometry";
 import { sceneToSvg } from "./core/svg";
+import { importSvgAsRecipe } from "./core/svg-import";
 import { validateStockSafeSvg } from "./core/validator";
+import { validateAssetRecipe } from "./core/recipe";
 import { sceneToEps } from "./export/eps";
 import { clonePreset, presets } from "./presets";
-import type { AssetRecipe, IconType, ShapeType } from "./types";
 import { UI_ICONS } from "./ui/icons";
 import { CURATED_PALETTES } from "./ui/palettes";
 
@@ -31,7 +32,7 @@ app.innerHTML = `
               ${Object.keys(presets)
                 .map(
                   (key) =>
-                    `<option value="${key}"${key === "coin" ? " selected" : ""}>${presets[key].name}</option>`
+                    `<option value="${key}"${key === "button" ? " selected" : ""}>${presets[key].name}</option>`
                 )
                 .join("")}
             </select>
@@ -47,10 +48,10 @@ app.innerHTML = `
         </div>
 
         <div class="topbar-actions">
-          <label class="btn btn-secondary btn-sm" style="cursor: pointer;" title="Import Recipe JSON file">
+          <label class="btn btn-secondary btn-sm" style="cursor: pointer;" title="Import SVG or Recipe JSON file">
             ${UI_ICONS.upload}
             <span>Import</span>
-            <input id="topbarImportInput" type="file" accept=".json,application/json" style="display: none;" />
+            <input id="topbarImportInput" type="file" accept=".json,.svg,application/json,image/svg+xml" style="display: none;" />
           </label>
 
           <div class="export-menu-wrap">
@@ -167,17 +168,14 @@ app.innerHTML = `
     <aside class="inspector">
       <!-- Tabs Header -->
       <nav class="inspector-tabs-bar" role="tablist">
-        <button class="inspector-tab active" data-tab="shape" role="tab" title="Shape Model" aria-label="Shape Model">
-          ${UI_ICONS.tabShape}
-        </button>
-        <button class="inspector-tab" data-tab="lighting" role="tab" title="3D & Lighting" aria-label="3D & Lighting">
+        <button class="inspector-tab active" data-tab="lighting" role="tab" title="3D & Lighting" aria-label="3D & Lighting">
           ${UI_ICONS.tab3D}
         </button>
         <button class="inspector-tab" data-tab="material" role="tab" title="Material & Colors" aria-label="Material & Colors">
           ${UI_ICONS.tabColors}
         </button>
-        <button class="inspector-tab" data-tab="symbol" role="tab" title="Icon Emblem" aria-label="Icon Emblem">
-          ${UI_ICONS.tabSymbol}
+        <button class="inspector-tab" data-tab="layers" role="tab" title="Layers" aria-label="Layers">
+          ${UI_ICONS.tabLayers}
         </button>
         <button class="inspector-tab" data-tab="recipe" role="tab" title="Recipe JSON" aria-label="Recipe JSON">
           ${UI_ICONS.tabCode}
@@ -186,86 +184,8 @@ app.innerHTML = `
 
       <!-- Inspector Panels Container -->
       <div class="inspector-content">
-        <!-- Panel 1: Shape -->
-        <div id="panel-shape" class="inspector-panel active">
-          <div class="panel-section">
-            <div class="panel-header">
-              <h3>Shape Model</h3>
-              <span class="header-badge">Geometry</span>
-            </div>
-            <div class="segmented-grid" id="shapeSelector">
-              <button type="button" class="segment-btn active" data-shape="coin">
-                ${UI_ICONS.shapeCoin}
-                <span>Coin</span>
-              </button>
-              <button type="button" class="segment-btn" data-shape="card">
-                ${UI_ICONS.shapeCard}
-                <span>Card</span>
-              </button>
-              <button type="button" class="segment-btn" data-shape="button">
-                ${UI_ICONS.shapeButton}
-                <span>Button</span>
-              </button>
-              <button type="button" class="segment-btn" data-shape="shield">
-                ${UI_ICONS.shapeShield}
-                <span>Shield</span>
-              </button>
-              <button type="button" class="segment-btn" data-shape="hex">
-                ${UI_ICONS.shapeHex}
-                <span>Hex</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <div class="panel-header">
-              <h3>Dimensions & Angles</h3>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Width</span>
-                <span id="widthOut" class="control-value-badge">670 px</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="width" type="range" min="320" max="760" step="1" />
-              </div>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Height</span>
-                <span id="heightOut" class="control-value-badge">495 px</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="height" type="range" min="260" max="700" step="1" />
-              </div>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Corner Radius <span class="control-caption">(Smoothness)</span></span>
-                <span id="cornerRadiusOut" class="control-value-badge">80 px</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="cornerRadius" type="range" min="0" max="180" step="1" />
-              </div>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Rotation Angle</span>
-                <span id="rotationOut" class="control-value-badge">-14°</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="rotation" type="range" min="-40" max="40" step="1" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Panel 2: 3D & Lighting -->
-        <div id="panel-lighting" class="inspector-panel">
+        <!-- Panel 1: 3D & Lighting -->
+        <div id="panel-lighting" class="inspector-panel active">
           <div class="panel-section">
             <div class="panel-header">
               <h3>3D Extrusion</h3>
@@ -278,7 +198,7 @@ app.innerHTML = `
                 <span id="depthOut" class="control-value-badge">62 px</span>
               </div>
               <div class="slider-wrapper">
-                <input id="depth" type="range" min="8" max="110" step="1" />
+                <input id="depth" type="range" min="0" max="110" step="1" />
               </div>
             </div>
 
@@ -288,7 +208,7 @@ app.innerHTML = `
                 <span id="bevelOut" class="control-value-badge">30 px</span>
               </div>
               <div class="slider-wrapper">
-                <input id="bevel" type="range" min="6" max="55" step="1" />
+                <input id="bevel" type="range" min="0" max="55" step="1" />
               </div>
             </div>
 
@@ -327,30 +247,8 @@ app.innerHTML = `
           </div>
         </div>
 
-        <!-- Panel 3: Material & Colors -->
+        <!-- Panel 2: Material & Colors -->
         <div id="panel-material" class="inspector-panel">
-          <div class="panel-section">
-            <div class="panel-header">
-              <h3>Curated Themes</h3>
-              <span class="header-badge">1-Click</span>
-            </div>
-            <div class="palettes-grid" id="palettesGrid">
-              ${CURATED_PALETTES.map(
-                (p) => `
-                <div class="palette-card" data-palette="${p.id}">
-                  <div class="palette-dots">
-                    <div class="palette-dot" style="background: ${p.faceColor}"></div>
-                    <div class="palette-dot" style="background: ${p.sideColor}"></div>
-                    <div class="palette-dot" style="background: ${p.symbolColor}"></div>
-                    <div class="palette-dot" style="background: ${p.symbolSideColor}"></div>
-                  </div>
-                  <span class="palette-name">${p.name}</span>
-                </div>
-              `
-              ).join("")}
-            </div>
-          </div>
-
           <div class="panel-section">
             <div class="panel-header">
               <h3>Custom Swatches</h3>
@@ -399,65 +297,19 @@ app.innerHTML = `
           </div>
         </div>
 
-        <!-- Panel 4: Symbol / Emblem -->
-        <div id="panel-symbol" class="inspector-panel">
+        <!-- Panel 3: Rendered Layers -->
+        <div id="panel-layers" class="inspector-panel">
           <div class="panel-section">
             <div class="panel-header">
-              <h3>Icon Emblem</h3>
-              <span class="header-badge">Relief</span>
+              <h3>Layer Stack</h3>
+              <span id="layerCount" class="header-badge">0 layers</span>
             </div>
-            <div class="segmented-grid" id="iconSelector">
-              <button type="button" class="segment-btn active" data-icon="dollar">
-                ${UI_ICONS.symbolDollar}
-                <span>Dollar</span>
-              </button>
-              <button type="button" class="segment-btn" data-icon="check">
-                ${UI_ICONS.symbolCheck}
-                <span>Check</span>
-              </button>
-              <button type="button" class="segment-btn" data-icon="star">
-                ${UI_ICONS.symbolStar}
-                <span>Star</span>
-              </button>
-              <button type="button" class="segment-btn" data-icon="bolt">
-                ${UI_ICONS.symbolBolt}
-                <span>Bolt</span>
-              </button>
-              <button type="button" class="segment-btn" data-icon="none">
-                ${UI_ICONS.symbolNone}
-                <span>None</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="panel-section">
-            <div class="panel-header">
-              <h3>Symbol Scaling & Depth</h3>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Symbol Scale</span>
-                <span id="symbolScaleOut" class="control-value-badge">78%</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="symbolScale" type="range" min="0.35" max="1.15" step="0.01" />
-              </div>
-            </div>
-
-            <div class="control-group">
-              <div class="control-label-row">
-                <span class="control-label">Symbol 3D Relief <span class="control-caption">(Height)</span></span>
-                <span id="symbolDepthOut" class="control-value-badge">18 px</span>
-              </div>
-              <div class="slider-wrapper">
-                <input id="symbolDepth" type="range" min="0" max="40" step="1" />
-              </div>
-            </div>
+            <p class="layer-description">Urutan ini mengikuti susunan layer pada preset dan hasil render.</p>
+            <div id="layerList" class="layer-list"></div>
           </div>
         </div>
 
-        <!-- Panel 5: Recipe JSON -->
+        <!-- Panel 4: Recipe JSON -->
         <div id="panel-recipe" class="inspector-panel">
           <div class="panel-section recipe-panel">
             <div class="recipe-toolbar">
@@ -465,10 +317,10 @@ app.innerHTML = `
                 <h3>Recipe JSON Definition</h3>
               </div>
               <div style="display: flex; gap: 6px;">
-                <label class="btn btn-secondary btn-sm" style="cursor: pointer;" title="Import Recipe JSON file">
+                <label class="btn btn-secondary btn-sm" style="cursor: pointer;" title="Import SVG or Recipe JSON file">
                   ${UI_ICONS.upload}
                   <span>Import</span>
-                  <input id="recipeImportInput" type="file" accept=".json,application/json" style="display: none;" />
+                  <input id="recipeImportInput" type="file" accept=".json,.svg,application/json,image/svg+xml" style="display: none;" />
                 </label>
                 <button id="copyRecipe" class="btn btn-secondary btn-sm">
                   ${UI_ICONS.copy}
@@ -517,20 +369,14 @@ function showToast(message: string, isError = false): void {
 // Controls Dictionary
 const controls = {
   preset: el<HTMLSelectElement>("preset"),
-  width: el<HTMLInputElement>("width"),
-  height: el<HTMLInputElement>("height"),
-  rotation: el<HTMLInputElement>("rotation"),
   depth: el<HTMLInputElement>("depth"),
   bevel: el<HTMLInputElement>("bevel"),
-  cornerRadius: el<HTMLInputElement>("cornerRadius"),
   faceColor: el<HTMLInputElement>("faceColor"),
   sideColor: el<HTMLInputElement>("sideColor"),
   symbolColor: el<HTMLInputElement>("symbolColor"),
   symbolSideColor: el<HTMLInputElement>("symbolSideColor"),
   lightAngle: el<HTMLInputElement>("lightAngle"),
-  depthAngle: el<HTMLInputElement>("depthAngle"),
-  symbolScale: el<HTMLInputElement>("symbolScale"),
-  symbolDepth: el<HTMLInputElement>("symbolDepth")
+  depthAngle: el<HTMLInputElement>("depthAngle")
 };
 
 const hexOutputs = {
@@ -541,16 +387,10 @@ const hexOutputs = {
 };
 
 const outputs = {
-  width: el<HTMLSpanElement>("widthOut"),
-  height: el<HTMLSpanElement>("heightOut"),
-  rotation: el<HTMLSpanElement>("rotationOut"),
   depth: el<HTMLSpanElement>("depthOut"),
   bevel: el<HTMLSpanElement>("bevelOut"),
-  cornerRadius: el<HTMLSpanElement>("cornerRadiusOut"),
   lightAngle: el<HTMLSpanElement>("lightAngleOut"),
-  depthAngle: el<HTMLSpanElement>("depthAngleOut"),
-  symbolScale: el<HTMLSpanElement>("symbolScaleOut"),
-  symbolDepth: el<HTMLSpanElement>("symbolDepthOut")
+  depthAngle: el<HTMLSpanElement>("depthAngleOut")
 };
 
 const svgHost = el<HTMLDivElement>("svgHost");
@@ -562,7 +402,7 @@ const recipeEditor = el<HTMLTextAreaElement>("recipeEditor");
 const recipeError = el<HTMLDivElement>("recipeError");
 const zoomLevelIndicator = el<HTMLSpanElement>("zoomLevel");
 
-let recipe = clonePreset("coin");
+let recipe = clonePreset("button");
 let ignoreRecipeEditor = false;
 let currentZoom = 1;
 let pngExportScale = 2;
@@ -590,20 +430,14 @@ function updateSliderTrack(input: HTMLInputElement): void {
 }
 
 function applyControlsToRecipe(): void {
-  recipe.shape.width = numberValue(controls.width);
-  recipe.shape.height = numberValue(controls.height);
-  recipe.shape.rotation = numberValue(controls.rotation);
   recipe.shape.depth = numberValue(controls.depth);
   recipe.shape.bevel = numberValue(controls.bevel);
-  recipe.shape.cornerRadius = numberValue(controls.cornerRadius);
   recipe.shape.faceColor = controls.faceColor.value;
   recipe.shape.sideColor = controls.sideColor.value;
   recipe.shape.lightAngle = numberValue(controls.lightAngle);
   recipe.shape.depthAngle = numberValue(controls.depthAngle);
   recipe.symbol.color = controls.symbolColor.value;
   recipe.symbol.sideColor = controls.symbolSideColor.value;
-  recipe.symbol.scale = numberValue(controls.symbolScale);
-  recipe.symbol.depth = numberValue(controls.symbolDepth);
 
   if (recipe.parts && recipe.parts.length > 0) {
     const frontPart = recipe.parts[recipe.parts.length - 1];
@@ -632,57 +466,29 @@ function syncControlsFromRecipe(): void {
     }
   }
 
-  // Update shape segmented buttons
-  document.querySelectorAll<HTMLButtonElement>("#shapeSelector .segment-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.shape === recipe.shape.type);
-  });
-
-  // Update symbol segmented buttons
-  document.querySelectorAll<HTMLButtonElement>("#iconSelector .segment-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.icon === recipe.symbol.icon);
-  });
-
-  controls.width.value = String(recipe.shape.width);
-  controls.height.value = String(recipe.shape.height);
-  controls.rotation.value = String(recipe.shape.rotation);
   controls.depth.value = String(recipe.shape.depth);
   controls.bevel.value = String(recipe.shape.bevel);
-  controls.cornerRadius.value = String(recipe.shape.cornerRadius);
   controls.faceColor.value = recipe.shape.faceColor;
   controls.sideColor.value = recipe.shape.sideColor;
   controls.lightAngle.value = String(recipe.shape.lightAngle);
   controls.depthAngle.value = String(recipe.shape.depthAngle);
   controls.symbolColor.value = recipe.symbol.color;
   controls.symbolSideColor.value = recipe.symbol.sideColor;
-  controls.symbolScale.value = String(recipe.symbol.scale);
-  controls.symbolDepth.value = String(recipe.symbol.depth);
 
   // Update slider gradient tracks
   [
-    controls.width,
-    controls.height,
-    controls.rotation,
     controls.depth,
     controls.bevel,
-    controls.cornerRadius,
     controls.lightAngle,
-    controls.depthAngle,
-    controls.symbolScale,
-    controls.symbolDepth
+    controls.depthAngle
   ].forEach(updateSliderTrack);
 }
 
 function syncOutputs(): void {
-  outputs.width.textContent = `${recipe.shape.width} px`;
-  outputs.height.textContent = `${recipe.shape.height} px`;
-  outputs.rotation.textContent = `${recipe.shape.rotation}°`;
   outputs.depth.textContent = `${recipe.shape.depth} px`;
   outputs.bevel.textContent = `${recipe.shape.bevel} px`;
-  outputs.cornerRadius.textContent = `${recipe.shape.cornerRadius} px`;
   outputs.lightAngle.textContent = `${recipe.shape.lightAngle}°`;
   outputs.depthAngle.textContent = `${recipe.shape.depthAngle}°`;
-  outputs.symbolScale.textContent = `${Math.round(recipe.symbol.scale * 100)}%`;
-  outputs.symbolDepth.textContent = `${recipe.symbol.depth} px`;
 
   hexOutputs.faceColor.textContent = recipe.shape.faceColor.toUpperCase();
   hexOutputs.sideColor.textContent = recipe.shape.sideColor.toUpperCase();
@@ -744,26 +550,26 @@ function scheduleRender(updateEditorImmediately = false): void {
 
 // Bind Sliders & Color Pickers
 const inputControls = [
-  controls.width,
-  controls.height,
-  controls.rotation,
   controls.depth,
   controls.bevel,
-  controls.cornerRadius,
   controls.faceColor,
   controls.sideColor,
   controls.symbolColor,
   controls.symbolSideColor,
   controls.lightAngle,
-  controls.depthAngle,
-  controls.symbolScale,
-  controls.symbolDepth
+  controls.depthAngle
 ];
 
 inputControls.forEach((control) => {
   control.addEventListener("input", () => {
     if (control instanceof HTMLInputElement && control.type === "range") {
       updateSliderTrack(control);
+    }
+    if (control === controls.faceColor && recipe.shape.type === "custom" && recipe.shape.source) {
+      recipe.shape.source.preserveColors = false;
+    }
+    if (control === controls.symbolColor && recipe.symbol.icon === "custom" && recipe.symbol.source) {
+      recipe.symbol.source.preserveColors = false;
     }
     applyControlsToRecipe();
     scheduleRender(false);
@@ -786,34 +592,6 @@ controls.preset.addEventListener("change", () => {
   showToast(`Switched to ${recipe.name}`);
 });
 
-// Shape Selector Segmented Buttons
-document.querySelectorAll<HTMLButtonElement>("#shapeSelector .segment-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const shape = btn.dataset.shape as ShapeType;
-    if (!shape) return;
-    recipe.shape.type = shape;
-    document.querySelectorAll<HTMLButtonElement>("#shapeSelector .segment-btn").forEach((b) => {
-      b.classList.toggle("active", b === btn);
-    });
-    scheduleRender(true);
-    showToast(`Shape changed to ${shape}`);
-  });
-});
-
-// Icon Selector Segmented Buttons
-document.querySelectorAll<HTMLButtonElement>("#iconSelector .segment-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const icon = btn.dataset.icon as IconType;
-    if (!icon) return;
-    recipe.symbol.icon = icon;
-    document.querySelectorAll<HTMLButtonElement>("#iconSelector .segment-btn").forEach((b) => {
-      b.classList.toggle("active", b === btn);
-    });
-    scheduleRender(true);
-    showToast(`Emblem changed to ${icon}`);
-  });
-});
-
 // Light Angle Presets
 document.querySelectorAll<HTMLButtonElement>(".angle-preset-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -824,24 +602,6 @@ document.querySelectorAll<HTMLButtonElement>(".angle-preset-btn").forEach((btn) 
     applyControlsToRecipe();
     scheduleRender(true);
     showToast(`Light angle: ${angle}°`);
-  });
-});
-
-// Curated Palettes 1-Click
-document.querySelectorAll<HTMLDivElement>(".palette-card").forEach((card) => {
-  card.addEventListener("click", () => {
-    const palId = card.dataset.palette;
-    const pal = CURATED_PALETTES.find((p) => p.id === palId);
-    if (!pal) return;
-
-    controls.faceColor.value = pal.faceColor;
-    controls.sideColor.value = pal.sideColor;
-    controls.symbolColor.value = pal.symbolColor;
-    controls.symbolSideColor.value = pal.symbolSideColor;
-
-    applyControlsToRecipe();
-    scheduleRender(true);
-    showToast(`Applied ${pal.name} theme`);
   });
 });
 
@@ -914,15 +674,8 @@ el<HTMLButtonElement>("zoomReset").addEventListener("click", () => setZoom(1));
 
 // Shuffle / Randomize Feature
 el<HTMLButtonElement>("shuffleBtn").addEventListener("click", () => {
-  const shapes: ShapeType[] = ["coin", "card", "button", "shield", "hex"];
-  const icons: IconType[] = ["dollar", "check", "star", "bolt", "none"];
-  const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
-  const randomIcon = icons[Math.floor(Math.random() * icons.length)];
   const randomPal = CURATED_PALETTES[Math.floor(Math.random() * CURATED_PALETTES.length)];
 
-  recipe.shape.type = randomShape;
-  recipe.symbol.icon = randomIcon;
-  recipe.shape.rotation = Math.floor(Math.random() * 50) - 25;
   recipe.shape.depth = Math.floor(Math.random() * 60) + 20;
   recipe.shape.bevel = Math.floor(Math.random() * 25) + 10;
   recipe.shape.lightAngle = Math.floor(Math.random() * 360);
@@ -1048,8 +801,9 @@ el<HTMLButtonElement>("applyRecipe").addEventListener("click", () => {
   recipeError.classList.remove("visible");
 
   try {
-    const parsed = JSON.parse(recipeEditor.value) as AssetRecipe;
+    const parsed = validateAssetRecipe(JSON.parse(recipeEditor.value));
     recipe = parsed;
+    controls.preset.selectedIndex = -1;
     syncControlsFromRecipe();
     render(false);
     showToast("Recipe applied successfully!");
@@ -1080,15 +834,10 @@ function importRecipeFromJsonString(jsonString: string, sourceName = "recipe.jso
   recipeError.classList.remove("visible");
 
   try {
-    const parsed = JSON.parse(jsonString) as AssetRecipe;
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("Invalid JSON: Root must be an object.");
-    }
-    if (!parsed.shape || typeof parsed.shape !== "object") {
-      throw new Error("Invalid recipe format: Missing 'shape' configuration.");
-    }
+    const parsed = validateAssetRecipe(JSON.parse(jsonString));
 
     recipe = parsed;
+    controls.preset.selectedIndex = -1;
     syncControlsFromRecipe();
     render(false);
     showToast(`Imported ${parsed.name || sourceName}`);
@@ -1097,6 +846,39 @@ function importRecipeFromJsonString(jsonString: string, sourceName = "recipe.jso
     recipeError.textContent = `Import error: ${message}`;
     recipeError.classList.add("visible");
     showToast(`Import failed: ${message}`, true);
+  }
+}
+
+function importRecipeFromSvgString(svgString: string, sourceName = "asset.svg"): void {
+  recipeError.textContent = "";
+  recipeError.classList.remove("visible");
+
+  try {
+    const result = importSvgAsRecipe(svgString, sourceName);
+    recipe = result.recipe;
+    controls.preset.selectedIndex = -1;
+    syncControlsFromRecipe();
+    render(true);
+    const warningSuffix = result.warnings.length > 0
+      ? ` (${result.warnings.length} import warning${result.warnings.length === 1 ? "" : "s"})`
+      : "";
+    recipeError.textContent = result.warnings.join(" ");
+    recipeError.classList.toggle("visible", result.warnings.length > 0);
+    showToast(`Imported ${recipe.name}${warningSuffix}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recipeError.textContent = `Import error: ${message}`;
+    recipeError.classList.add("visible");
+    showToast(`Import failed: ${message}`, true);
+  }
+}
+
+function importAssetText(text: string, file: File): void {
+  const isSvg = file.name.toLowerCase().endsWith(".svg") || file.type === "image/svg+xml";
+  if (isSvg) {
+    importRecipeFromSvgString(text, file.name);
+  } else {
+    importRecipeFromJsonString(text, file.name);
   }
 }
 
@@ -1111,9 +893,7 @@ function bindFileInput(id: string): void {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      if (text) {
-        importRecipeFromJsonString(text, file.name);
-      }
+      if (text) importAssetText(text, file);
       input.value = "";
     };
     reader.onerror = () => {
@@ -1127,7 +907,7 @@ function bindFileInput(id: string): void {
 bindFileInput("topbarImportInput");
 bindFileInput("recipeImportInput");
 
-// Drag & Drop JSON onto Window / Canvas
+// Drag & Drop SVG or JSON onto Window / Canvas
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
 });
@@ -1135,13 +915,11 @@ window.addEventListener("dragover", (e) => {
 window.addEventListener("drop", (e) => {
   e.preventDefault();
   const file = e.dataTransfer?.files?.[0];
-  if (file && (file.name.endsWith(".json") || file.type.includes("json"))) {
+  if (file && (/\.(json|svg)$/i.test(file.name) || file.type.includes("json") || file.type === "image/svg+xml")) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      if (text) {
-        importRecipeFromJsonString(text, file.name);
-      }
+      if (text) importAssetText(text, file);
     };
     reader.onerror = () => {
       showToast("Failed to read dropped file", true);
@@ -1158,9 +936,6 @@ window.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === "s") {
     e.preventDefault();
     el<HTMLButtonElement>("exportSvg").click();
-  } else if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-    e.preventDefault();
-    copySvgToClipboard();
   } else if (e.key === "r" || e.key === "R") {
     el<HTMLButtonElement>("shuffleBtn").click();
   }
@@ -1169,4 +944,3 @@ window.addEventListener("keydown", (e) => {
 // Initial Setup
 syncControlsFromRecipe();
 render(true);
-

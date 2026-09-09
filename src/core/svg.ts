@@ -1,10 +1,16 @@
 import type {
-  LinearGradient,
+  MatrixTuple,
   Paint,
   TransformSpec,
   VectorNode,
   VectorScene
 } from "../types";
+
+type GradientPaint = Exclude<Paint, string>;
+
+function matrixToSvg(matrix: MatrixTuple): string {
+  return `matrix(${matrix.join(" ")})`;
+}
 
 const escapeXml = (value: string): string =>
   value
@@ -31,6 +37,7 @@ function transformToSvg(transform?: TransformSpec): string {
   if (sx !== 1 || sy !== 1) {
     parts.push(`translate(${ox} ${oy}) scale(${sx} ${sy}) translate(${-ox} ${-oy})`);
   }
+  if (transform.matrix) parts.push(matrixToSvg(transform.matrix));
 
   return parts.join(" ");
 }
@@ -45,6 +52,16 @@ function commonAttrs(node: VectorNode): string {
   if (node.stroke) attrs.push(`stroke="${escapeXml(node.stroke)}"`);
   if (node.strokeWidth !== undefined) attrs.push(`stroke-width="${node.strokeWidth}"`);
   if (node.opacity !== undefined) attrs.push(`opacity="${node.opacity}"`);
+  if (node.fillOpacity !== undefined) attrs.push(`fill-opacity="${node.fillOpacity}"`);
+  if (node.strokeOpacity !== undefined) attrs.push(`stroke-opacity="${node.strokeOpacity}"`);
+  if (node.strokeDasharray) attrs.push(`stroke-dasharray="${node.strokeDasharray.join(" ")}"`);
+  if (node.strokeDashoffset !== undefined) attrs.push(`stroke-dashoffset="${node.strokeDashoffset}"`);
+  if ("strokeLinecap" in node && node.strokeLinecap) {
+    attrs.push(`stroke-linecap="${node.strokeLinecap}"`);
+  }
+  if ("strokeLinejoin" in node && node.strokeLinejoin) {
+    attrs.push(`stroke-linejoin="${node.strokeLinejoin}"`);
+  }
 
   const transform = transformToSvg(node.transform);
   if (transform) attrs.push(`transform="${escapeXml(transform)}"`);
@@ -52,8 +69,8 @@ function commonAttrs(node: VectorNode): string {
   return attrs.join(" ");
 }
 
-function collectGradients(scene: VectorScene): LinearGradient[] {
-  const found = new Map<string, LinearGradient>();
+function collectGradients(scene: VectorScene): GradientPaint[] {
+  const found = new Map<string, GradientPaint>();
 
   for (const node of scene.nodes) {
     if (typeof node.fill !== "string") {
@@ -83,15 +100,28 @@ function renderDefs(scene: VectorScene): string {
 
   const body = gradients
     .map((gradient) => {
-      const vector = gradientVector(gradient.angle);
       const stops = gradient.stops
         .map(
           (stop) =>
-            `<stop offset="${stop.offset * 100}%" stop-color="${escapeXml(stop.color)}"/>`
+            `<stop offset="${stop.offset * 100}%" stop-color="${escapeXml(stop.color)}"${stop.opacity === undefined ? "" : ` stop-opacity="${stop.opacity}"`}/>`
         )
         .join("");
 
-      return `<linearGradient id="${escapeXml(gradient.id)}" x1="${vector.x1}%" y1="${vector.y1}%" x2="${vector.x2}%" y2="${vector.y2}%">${stops}</linearGradient>`;
+      const units = gradient.units ? ` gradientUnits="${gradient.units}"` : "";
+      const gradientTransform = gradient.matrix
+        ? ` gradientTransform="${escapeXml(matrixToSvg(gradient.matrix))}"`
+        : "";
+
+      if (gradient.kind === "radial") {
+        return `<radialGradient id="${escapeXml(gradient.id)}" cx="${gradient.cx}" cy="${gradient.cy}" r="${gradient.r}"${gradient.fx === undefined ? "" : ` fx="${gradient.fx}"`}${gradient.fy === undefined ? "" : ` fy="${gradient.fy}"`}${units}${gradientTransform}>${stops}</radialGradient>`;
+      }
+
+      if (gradient.angle !== undefined) {
+        const vector = gradientVector(gradient.angle);
+        return `<linearGradient id="${escapeXml(gradient.id)}" x1="${vector.x1}%" y1="${vector.y1}%" x2="${vector.x2}%" y2="${vector.y2}%"${units}${gradientTransform}>${stops}</linearGradient>`;
+      }
+
+      return `<linearGradient id="${escapeXml(gradient.id)}" x1="${gradient.x1 ?? 0}" y1="${gradient.y1 ?? 0}" x2="${gradient.x2 ?? 1}" y2="${gradient.y2 ?? 0}"${units}${gradientTransform}>${stops}</linearGradient>`;
     })
     .join("");
 

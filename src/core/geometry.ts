@@ -1,10 +1,12 @@
 import type {
   AssetRecipe,
+  MatrixTuple,
   Paint,
   PathNode,
   ShapeRecipe,
   SymbolRecipe,
   TransformSpec,
+  VectorElementRecipe,
   VectorNode
 } from "../types";
 import { shade } from "./color";
@@ -13,6 +15,101 @@ import { iconPath } from "./icons";
 function polar(angleDeg: number): { x: number; y: number } {
   const angle = (angleDeg * Math.PI) / 180;
   return { x: Math.cos(angle), y: Math.sin(angle) };
+}
+
+function multiplyMatrices(left: MatrixTuple, right: MatrixTuple): MatrixTuple {
+  const [a1, b1, c1, d1, e1, f1] = left;
+  const [a2, b2, c2, d2, e2, f2] = right;
+  return [
+    a1 * a2 + c1 * b2,
+    b1 * a2 + d1 * b2,
+    a1 * c2 + c1 * d2,
+    b1 * c2 + d1 * d2,
+    a1 * e2 + c1 * f2 + e1,
+    b1 * e2 + d1 * f2 + f1
+  ];
+}
+
+function sourceMappingMatrix(shape: ShapeRecipe): MatrixTuple {
+  const source = shape.source;
+  if (!source) return [1, 0, 0, 1, 0, 0];
+
+  const [vx, vy, viewWidth, viewHeight] = source.viewBox;
+  if (viewWidth <= 0 || viewHeight <= 0) {
+    throw new Error("Custom vector viewBox width and height must be greater than zero.");
+  }
+
+  let scaleX = shape.width / viewWidth;
+  let scaleY = shape.height / viewHeight;
+  if ((source.preserveAspectRatio ?? "meet") !== "none") {
+    const scale = (source.preserveAspectRatio ?? "meet") === "slice"
+      ? Math.max(scaleX, scaleY)
+      : Math.min(scaleX, scaleY);
+    scaleX = scale;
+    scaleY = scale;
+  }
+
+  const renderedWidth = viewWidth * scaleX;
+  const renderedHeight = viewHeight * scaleY;
+  return [
+    scaleX,
+    0,
+    0,
+    scaleY,
+    shape.center[0] - renderedWidth / 2 - vx * scaleX,
+    shape.center[1] - renderedHeight / 2 - vy * scaleY
+  ];
+}
+
+function customElementToNode(
+  element: VectorElementRecipe,
+  transform: TransformSpec,
+  fill: Paint,
+  includeSourceStyle: boolean
+): VectorNode {
+  const common = {
+    fill: includeSourceStyle ? (element.fill ?? fill) : fill,
+    stroke: includeSourceStyle ? element.stroke : undefined,
+    strokeWidth: includeSourceStyle ? element.strokeWidth : undefined,
+    strokeLinecap: includeSourceStyle ? element.strokeLinecap : undefined,
+    strokeLinejoin: includeSourceStyle ? element.strokeLinejoin : undefined,
+    strokeDasharray: includeSourceStyle ? element.strokeDasharray : undefined,
+    strokeDashoffset: includeSourceStyle ? element.strokeDashoffset : undefined,
+    opacity: includeSourceStyle ? element.opacity : undefined,
+    fillOpacity: includeSourceStyle ? element.fillOpacity : undefined,
+    strokeOpacity: includeSourceStyle ? element.strokeOpacity : undefined,
+    transform
+  };
+
+  switch (element.kind) {
+    case "ellipse":
+      return {
+        kind: "ellipse",
+        cx: element.cx,
+        cy: element.cy,
+        rx: element.rx,
+        ry: element.ry,
+        ...common
+      };
+    case "rect":
+      return {
+        kind: "rect",
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        rx: element.rx ?? 0,
+        ry: element.ry ?? element.rx ?? 0,
+        ...common
+      };
+    case "path":
+      return {
+        kind: "path",
+        d: element.d,
+        fillRule: element.fillRule,
+        ...common
+      };
+  }
 }
 
 function transformForShape(shape: ShapeRecipe, dx = 0, dy = 0): TransformSpec {
@@ -134,7 +231,43 @@ function createBaseNode(shape: ShapeRecipe, fill: Paint, dx = 0, dy = 0): Vector
         fillRule: "evenodd",
         transform
       };
+
+    case "custom":
+      throw new Error("Custom shapes contain multiple nodes; use createBaseNodes().");
   }
+}
+
+function createBaseNodes(
+  shape: ShapeRecipe,
+  fill: Paint,
+  dx = 0,
+  dy = 0,
+  includeSourceStyle = false
+): VectorNode[] {
+  if (shape.type !== "custom") return [createBaseNode(shape, fill, dx, dy)];
+  if (!shape.source || shape.source.elements.length === 0) {
+    throw new Error("Custom shape is missing vector source elements.");
+  }
+
+  const mapping = sourceMappingMatrix(shape);
+  return shape.source.elements.map((element) => {
+    const matrix = element.matrix
+      ? multiplyMatrices(mapping, element.matrix)
+      : mapping;
+    return customElementToNode(
+      element,
+      {
+        translateX: dx,
+        translateY: dy,
+        rotate: shape.rotation,
+        originX: shape.center[0],
+        originY: shape.center[1],
+        matrix
+      },
+      fill,
+      includeSourceStyle && shape.source?.preserveColors !== false
+    );
+  });
 }
 
 function scaleNodeAroundCenter(node: VectorNode, factorX: number, factorY: number): VectorNode {
@@ -168,7 +301,39 @@ function scaleNodeAroundCenter(node: VectorNode, factorX: number, factorY: numbe
   };
 }
 
-function addBevel(nodes: VectorNode[], shape: ShapeRecipe): void {
+function addBevel(nodes: VectorNode[], shape: ShapeRecipe, groupPrefix: string): void {
+  if (shape.bevel <= 0) return;
+
+  if (shape.type === "custom") {
+    const outlines = createBaseNodes(shape, "none");
+    const dark = shade(shape.faceColor, -38);
+    const light = shade(shape.faceColor, 38);
+    const width = Math.max(1, shape.bevel * 0.55);
+
+    for (const outline of outlines) {
+      nodes.push({
+        ...outline,
+        fill: "none",
+        stroke: dark,
+        strokeWidth: width,
+        group: `${groupPrefix}-bevel`
+      } as VectorNode);
+      nodes.push({
+        ...outline,
+        fill: "none",
+        stroke: light,
+        strokeWidth: Math.max(1, width * 0.45),
+        transform: {
+          ...outline.transform,
+          translateX: (outline.transform?.translateX ?? 0) - shape.bevel * 0.1,
+          translateY: (outline.transform?.translateY ?? 0) - shape.bevel * 0.13
+        },
+        group: `${groupPrefix}-bevel`
+      } as VectorNode);
+    }
+    return;
+  }
+
   const front = createBaseNode(shape, "none");
   const dark = shade(shape.faceColor, -38);
   const light = shade(shape.faceColor, 38);
@@ -179,7 +344,7 @@ function addBevel(nodes: VectorNode[], shape: ShapeRecipe): void {
     fill: "none",
     stroke: dark,
     strokeWidth: width,
-    group: "bevel"
+    group: `${groupPrefix}-bevel`
   } as VectorNode);
 
   nodes.push({
@@ -192,7 +357,7 @@ function addBevel(nodes: VectorNode[], shape: ShapeRecipe): void {
       translateX: (front.transform?.translateX ?? 0) - shape.bevel * 0.10,
       translateY: (front.transform?.translateY ?? 0) - shape.bevel * 0.13
     },
-    group: "bevel"
+    group: `${groupPrefix}-bevel`
   } as VectorNode);
 
   if (shape.type === "coin" || shape.type === "button") {
@@ -203,7 +368,7 @@ function addBevel(nodes: VectorNode[], shape: ShapeRecipe): void {
       insetFactorX,
       insetFactorY
     );
-    inset.group = "bevel";
+    inset.group = `${groupPrefix}-bevel`;
     nodes.push(inset);
 
     nodes.push({
@@ -211,7 +376,7 @@ function addBevel(nodes: VectorNode[], shape: ShapeRecipe): void {
       fill: "none",
       stroke: shade(shape.faceColor, -28),
       strokeWidth: Math.max(5, shape.bevel * 0.35),
-      group: "bevel"
+      group: `${groupPrefix}-bevel`
     } as VectorNode);
   }
 }
@@ -220,8 +385,55 @@ function addSymbol(
   nodes: VectorNode[],
   shape: ShapeRecipe,
   symbol: SymbolRecipe,
-  gradientId = "symbol-gradient"
+  gradientId = "symbol-gradient",
+  groupPrefix = "part-0"
 ): void {
+  if (symbol.icon === "custom") {
+    if (!symbol.source || symbol.source.elements.length === 0) {
+      throw new Error("Custom emblem is missing vector source elements.");
+    }
+
+    const symbolShape: ShapeRecipe = {
+      ...shape,
+      type: "custom",
+      center: [shape.center[0] + symbol.offset[0], shape.center[1] + symbol.offset[1]],
+      width: Math.min(shape.width, shape.height) * symbol.scale,
+      height: Math.min(shape.width, shape.height) * symbol.scale,
+      depth: symbol.depth,
+      bevel: 0,
+      faceColor: symbol.color,
+      sideColor: symbol.sideColor,
+      source: symbol.source
+    };
+    const direction = polar(shape.depthAngle);
+    const layers = symbol.depth <= 0 ? 0 : Math.min(12, Math.max(2, Math.ceil(symbol.depth / 4)));
+
+    for (let i = layers; i >= 1; i -= 1) {
+      const t = i / layers;
+      for (const node of createBaseNodes(
+        symbolShape,
+        shade(symbol.sideColor, Math.round((1 - t) * 18)),
+        direction.x * symbol.depth * t,
+        direction.y * symbol.depth * t
+      )) {
+        node.group = `${groupPrefix}-symbol-sides`;
+        nodes.push(node);
+      }
+    }
+
+    for (const node of createBaseNodes(
+      symbolShape,
+      symbolPaint(shape, symbol, gradientId),
+      0,
+      0,
+      true
+    )) {
+      node.group = `${groupPrefix}-symbol`;
+      nodes.push(node);
+    }
+    return;
+  }
+
   const d = iconPath(symbol.icon);
   if (!d) return;
 
@@ -240,7 +452,7 @@ function addSymbol(
       fill: shade(symbol.sideColor, Math.round((1 - t) * 18)),
       fillRule: "nonzero",
       transform: {
-        translateX: centerShiftX + offsetX + depthDirection.x * symbol.depth * t * 0.32,
+        translateX: centerShiftX + offsetX + depthDirection.x * symbol.depth * t,
         translateY: centerShiftY + offsetY + depthDirection.y * symbol.depth * t,
         rotate: shape.rotation,
         originX: 500,
@@ -248,7 +460,7 @@ function addSymbol(
         scaleX: symbol.scale,
         scaleY: symbol.scale
       },
-      group: "symbol"
+      group: `${groupPrefix}-symbol`
     };
     nodes.push(node);
   }
@@ -267,7 +479,7 @@ function addSymbol(
       scaleX: symbol.scale,
       scaleY: symbol.scale
     },
-    group: "symbol"
+    group: `${groupPrefix}-symbol`
   });
 }
 
@@ -278,7 +490,8 @@ function buildSinglePartNodes(
 ): VectorNode[] {
   const nodes: VectorNode[] = [];
   const direction = polar(shape.depthAngle);
-  const layers = Math.min(14, Math.max(4, Math.round(shape.depth / 7)));
+  const layers = shape.depth <= 0 ? 0 : Math.min(24, Math.max(4, Math.ceil(shape.depth / 4)));
+  const groupPrefix = `part-${partIndex}`;
 
   for (let i = layers; i >= 1; i -= 1) {
     const t = i / layers;
@@ -287,24 +500,32 @@ function buildSinglePartNodes(
       Math.round((1 - t) * 24 - 8)
     );
 
-    const sideNode = createBaseNode(
+    for (const sideNode of createBaseNodes(
       shape,
       sideColor,
-      direction.x * shape.depth * t * 0.32,
+      direction.x * shape.depth * t,
       direction.y * shape.depth * t
-    );
-    sideNode.group = "sides";
-    nodes.push(sideNode);
+    )) {
+      sideNode.group = `${groupPrefix}-sides`;
+      nodes.push(sideNode);
+    }
   }
 
-  const faceNode = createBaseNode(shape, facePaint(shape, `face-gradient-${partIndex}`));
-  faceNode.group = "face";
-  nodes.push(faceNode);
+  for (const faceNode of createBaseNodes(
+    shape,
+    facePaint(shape, `face-gradient-${partIndex}`),
+    0,
+    0,
+    true
+  )) {
+    faceNode.group = `${groupPrefix}-face`;
+    nodes.push(faceNode);
+  }
 
-  addBevel(nodes, shape);
+  addBevel(nodes, shape, groupPrefix);
 
   if (symbol && symbol.icon !== "none") {
-    addSymbol(nodes, shape, symbol, `symbol-gradient-${partIndex}`);
+    addSymbol(nodes, shape, symbol, `symbol-gradient-${partIndex}`, groupPrefix);
   }
 
   return nodes;

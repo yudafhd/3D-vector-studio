@@ -13,6 +13,7 @@ function starPath(cx: number, cy: number, outer: number, inner: number): string 
 export function iconPath(icon: IconType): string | null {
   switch (icon) {
     case "none":
+    case "custom":
       return null;
 
     case "dollar":

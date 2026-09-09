@@ -30,6 +30,9 @@ It does **not** use Three.js in the core rendering pipeline. Geometry is created
   - extrusion direction
   - symbol scale / depth
 - JSON recipe editor
+- Direct SVG import by file picker or drag-and-drop
+- Multi-element custom vector sources with nested transforms and reusable `<use>` geometry
+- Solid colors plus linear and radial gradients
 - SVG export
 - EPS export
 - SVG stock-safety validator
@@ -57,17 +60,62 @@ Each built-in asset is stored as an individual JSON recipe in `src/assets/`:
 
 ```text
 src/assets/
-├── button.json
-├── card.json
-├── coin.json
-├── coinStack.json
-├── hex.json
-└── shield.json
+└── button.json
 ```
 
 The filename (without `.json`) becomes the preset key. The loader discovers JSON
 files in this folder automatically, so adding a valid recipe file is enough to make
 it available in the preset selector without editing a TypeScript registry.
+
+## Complex SVG compatibility
+
+SVG files can be imported directly. The importer normalizes the source `viewBox`
+into the recipe canvas and stores editable vector data under `shape.source`.
+Supported geometry includes:
+
+- `path`, `rect`, `circle`, `ellipse`, `polygon`, `polyline`, and `line`
+- nested `svg`/`g` transforms, including matrix, translate, scale, rotate, and skew
+- reusable local `<use>` references and symbols
+- compound paths and `evenodd` fill rules
+- fill/stroke opacity, line caps, line joins, and dash patterns
+- solid colors, linear gradients, and radial gradients
+- all SVG path commands, including smooth curves and elliptical arcs, in SVG and EPS export
+
+For stock safety, raster images, scripts, `foreignObject`, video, and canvas content
+are rejected. Text should be converted to outlines before import. CSS class rules,
+filters, masks, and clip paths currently produce import warnings and are omitted.
+
+A custom shape recipe uses the same controls as a procedural shape:
+
+```json
+{
+  "type": "custom",
+  "center": [500, 500],
+  "width": 720,
+  "height": 540,
+  "rotation": 0,
+  "depth": 0,
+  "bevel": 0,
+  "cornerRadius": 0,
+  "faceColor": "#6366F1",
+  "sideColor": "#3730A3",
+  "lightAngle": 315,
+  "depthAngle": 105,
+  "source": {
+    "viewBox": [0, 0, 800, 600],
+    "preserveAspectRatio": "meet",
+    "preserveColors": true,
+    "elements": [
+      {
+        "kind": "path",
+        "d": "M 80 80 H 720 V 520 H 80 Z",
+        "fill": "#6366F1",
+        "fillRule": "nonzero"
+      }
+    ]
+  }
+}
+```
 
 ## Architecture
 
@@ -127,7 +175,7 @@ vector SVG          vector EPS
 
 ## EPS support
 
-The EPS exporter currently supports the vector commands used by the built-in generator:
+The EPS exporter supports:
 
 - ellipse
 - rounded rectangles
@@ -136,8 +184,9 @@ The EPS exporter currently supports the vector commands used by the built-in gen
   - L
   - H
   - V
-  - C
-  - Q
+  - C / S
+  - Q / T
+  - A
   - Z
 
 Gradients are flattened to their declared fallback solid color in EPS. SVG keeps the real vector gradients.
@@ -176,11 +225,11 @@ That should be a separate optional module, not the main vector renderer.
 
 ## Recommended next milestones
 
-1. Generic custom SVG path import
-2. Path normalization into a 1000×1000 recipe canvas
-3. Multi-part objects
-4. Per-face lighting
-5. Isometric primitive library
+1. Clip-path and mask flattening
+2. Text-to-outline conversion
+3. CSS stylesheet resolution
+4. Continuous side-face extrusion for arbitrary Bézier contours
+5. Per-face lighting
 6. Batch asset-pack generator
 7. Strict Adobe Stock preflight
 8. Outline expansion
